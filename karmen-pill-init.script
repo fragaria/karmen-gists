@@ -1,0 +1,320 @@
+#!/bin/bash
+
+###############################################################################
+# VARIABLES - TODO: add more variables from this script
+###############################################################################
+
+KEYS_OUT_FILE=/boot/KARMEN_KEYS.TXT
+
+###############################################################################
+# Check root privileges (this script needs to run as root/sudo)
+###############################################################################
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
+###############################################################################
+# Upgrade system
+###############################################################################
+
+echo "Upgrade system."
+apt update
+apt upgrade -y
+
+###############################################################################
+# Install websocket proxy client as systemd service
+###############################################################################
+
+echo "Install websocket proxy client service."
+runuser -l pi -c 'cd ~ && git clone https://github.com/fragaria/websocket-proxy.git karmen_websocket_proxy'
+mv /home/pi/karmen_websocket_proxy /opt/
+
+tee /etc/systemd/system/karmen-websocket-proxy.service > /dev/null <<EOT
+[Unit]
+Description=Karmen websocket proxy tunnel client
+After=network.target
+
+[Service]
+ExecStart=node client
+Restart=always
+# delay between restart executions
+RestartSec=10s
+# how many times to try to restart the service in StartLimitIntervalSec
+# StartLimitBurst=
+# StartLimitIntervalSec=
+User=pi
+Group=pi
+Environment=PATH=/usr/bin:/usr/local/bin
+EnvironmentFile=/etc/karmen_websocket_proxy.conf
+WorkingDirectory=/opt/karmen_websocket_proxy
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+echo "Karmen websocket proxy needs key to communicate with the server. You can change key later in /etc/karmen_websocket_proxy.conf file."
+echo "================================================================="
+read -p "Your Karmen key: " KEY_RESPONSE
+
+tee /etc/karmen_websocket_proxy.conf > /dev/null <<EOT
+NODE_ENV=production
+PATH=/usr/bin:/usr/local/bin
+KEY=$KEY_RESPONSE
+SERVER_URL=wss://cloud.karmen.tech
+FORWARD_TO=http://localhost
+EOT
+
+apt install -y nodejs npm
+runuser -l pi -c 'cd /opt/karmen_websocket_proxy/ && npm install --only=production'
+
+systemctl enable karmen-websocket-proxy
+systemctl restart karmen-websocket-proxy.service
+
+###############################################################################
+# Install awesome_karmen_led as octoprint plugin
+###############################################################################
+
+echo "Install awesome_karmen_led as octoprint plugin."
+
+cat <<EOT >> /home/pi/.octoprint/plugins/awesome_karmen_led.py
+import octoprint.plugin
+import flask
+import http.client
+import json
+
+class AwesomeKarmenLedPlugin(octoprint.plugin.SimpleApiPlugin, octoprint.plugin.StartupPlugin, octoprint.plugin.SettingsPlugin):
+    def get_api_commands(self):
+        return dict(
+            set_led=[],
+        )
+
+    def get_settings_defaults(self):
+        # This is here so octoprint reports plugin on /api/settings, the dict cannot be empty
+        return dict(ready=True)
+
+    def on_api_command(self, command, data):
+        if command == "set_led":
+            try:
+                con = http.client.HTTPConnection("127.0.0.1", 9091)
+                con.request('POST', '/set_led', json.dumps(data))
+                return flask.jsonify({"status": "OK"})
+            except:
+                return flask.jsonify({"status": "NOK"})
+
+    def on_api_get(self, request):
+        try:
+            con = http.client.HTTPConnection("127.0.0.1", 9091)
+            con.request('GET', '/')
+            r = con.getresponse()
+            return r.read()
+        except:
+            return flask.jsonify({})
+
+    def on_after_startup(self, *args, **kwargs):
+        try:
+            con = http.client.HTTPConnection("127.0.0.1", 9091)
+            con.request('POST', '/set_led', '{"color": [0, 50, 0], "heartbeat":1}')
+        except:
+            pass
+
+__plugin_name__ = "Karmen Pill LED plugin"
+__plugin_version__ = "1.0.0"
+__plugin_description__ = "Allow Karmen to control LED on Pill compatible device."
+__plugin_pythoncompat__ = ">=2.7,<4"
+__plugin_implementation__ = AwesomeKarmenLedPlugin()
+EOT
+
+chown -R pi:pi /home/pi/.octoprint/plugins/awesome_karmen_led.py
+chmod 755 /home/pi/.octoprint/plugins/awesome_karmen_led.py
+
+###############################################################################
+# Install karmen-led as systemd service
+###############################################################################
+
+echo "Install karmen-led as systemd service"
+
+tee /opt/karmen-led.py > /dev/null <<EOT
+#!/usr/bin/python3
+
+from apa102_pi.driver import apa102
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+import time
+
+NUM_LED = 8
+COLOR = (0, 0, 100)
+
+
+class RequestHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        global COLOR
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        body = post_data.decode('utf-8')
+        self.send_response(200)
+        self.end_headers()
+
+        params = json.loads(body)
+
+        if "color" in params:
+            COLOR = params["color"]
+
+        led_loop()
+
+    def do_GET(self):
+        global COLOR
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({
+            "color": COLOR,
+            "heartbeat": False,
+        }).encode(encoding="utf_8"))
+
+
+def led_loop():
+    strip = apa102.APA102(num_led=NUM_LED, order='rgb')
+    strip.clear_strip()
+    strip.set_global_brightness(255)
+    for x in range(NUM_LED):
+        #strip.set_pixel_rgb(x, 0xFFFFFF)  # White
+        strip.set_pixel(x, *COLOR)
+    strip.show()
+
+
+led_loop()
+
+
+if __name__ == '__main__':
+    server = HTTPServer(('127.0.0.1', 9091), RequestHandler)
+    server.serve_forever()
+EOT
+
+tee /etc/systemd/system/karmen-led.service > /dev/null <<EOT
+[Unit]
+Description=karmen-led
+DefaultDependencies=no
+After=remote-fs.target local-fs.target sysinit.target
+
+[Service]
+User=root
+Group=root
+ExecStartPre=dtparam spi=on
+ExecStart=/opt/karmen-led.py
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+apt install python3-pip -y
+pip3 install apa102-pi
+
+chmod +x /opt/karmen-led.py
+
+systemctl enable karmen-led.service
+systemctl restart karmen-led
+
+###############################################################################
+# Configure raspi camera resolution
+###############################################################################
+
+echo "Configure raspi camera resolution"
+
+cp /boot/octopi.txt /boot/octopi.txt.bck
+
+tee /boot/octopi.txt > /dev/null <<EOT
+camera="raspi"
+camera_raspi_options="-fps 10 -x 1296 -y 972 -quality 15"
+EOT
+
+systemctl restart webcamd
+
+###############################################################################
+# Run octoprint configuration wizzard
+###############################################################################
+
+OCTOPRINT_API_KEY=$(grep -r "  key: " /home/pi/.octoprint/config.yaml | awk '{print $2}')
+echo "OCTOPRINT_API_KEY: "$OCTOPRINT_API_KEY
+
+# Access Control - create account:
+curl 'http://localhost/plugin/corewizard/acl' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"user":"karmen","pass1":"karmen","pass2":"karmen"}'
+
+# Configure the connectivity check
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"server":{"onlineCheck":{"enabled":true,"interval":15,"host":"1.1.1.1","port":53}}}'
+
+# Disable tracking
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"plugins":{"tracking":{"enabled":false}}}'
+
+# Enable plugin blacklist processing
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"server":{"pluginBlacklist":{"enabled":true}}}'
+
+# Final click
+curl 'http://localhost/api/printerprofiles/_default' \
+  -X 'PATCH' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"profile":{"id":"_default","name":"Default","color":"default","model":"Generic RepRap Printer","volume":{"width":200,"depth":200,"height":200,"formFactor":"rectangular","origin":"lowerleft","custom_box":false},"heatedBed":true,"heatedChamber":false,"extruder":{"count":1,"offsets":[[0,0]],"nozzleDiameter":0.4,"sharedNozzle":false},"axes":{"x":{"speed":6000,"inverted":false},"y":{"speed":6000,"inverted":false},"z":{"speed":200,"inverted":false},"e":{"speed":300,"inverted":false}}}}'
+
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"temperature":{"profiles":[{"name":"ABS","extruder":210,"bed":100,"chamber":null},{"name":"PLA","extruder":180,"bed":60,"chamber":null}]}}'
+
+curl 'http://localhost/api/setup/wizard' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"handled":["backup","corewizard","tracking"]}'
+
+# Add more nozzles to work with Prusa MMU2
+curl 'http://localhost/api/printerprofiles/_default' \
+  -X 'PATCH' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"profile":{"id":"_default","extruder":{"count":5,"offsets":[[0,0],[0,0],[0,0],[0,0],[0,0]],"sharedNozzle":true}}}'
+
+# Setup webcam api snapshot url
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"webcam":{"snapshotUrl":"http://127.0.0.1/webcam/?action=snapshot"}}'
+
+# Disable octoprint unsupported hardware notiffication
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"plugins":{"pi_support":{"ignore_unrecommended_model":true}}}'
+
+###############################################################################
+# Generate keys file
+###############################################################################
+
+tee $KEYS_OUT_FILE > /dev/null <<EOT
+DEVICE KEY: $KEY_RESPONSE
+OCTOPRINT API KEY: $OCTOPRINT_API_KEY
+OCTOPRINT USER: karmen
+OCTOPRINT PASSWORD: karmen
+PI USER DEFAULT PASSWORD: raspberry
+EOT
+
+###############################################################################
+# All done, reboot system
+###############################################################################
+
+echo "============================================================"
+echo "All done. Please raspberry will reboot. Happy printing!"
+sudo reboot
