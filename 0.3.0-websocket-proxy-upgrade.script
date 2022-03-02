@@ -1,0 +1,7 @@
+#!/bin/bash
+
+git clone https://github.com/fragaria/websocket-proxy.git karmen_websocket_proxy
+cp -r /opt/karmen_websocket_proxy/node_modules /home/pi/karmen_websocket_proxy/
+sudo sed  -i '\/opt\/karmen_websocket_proxy/c\WorkingDirectory=\/home\/pi\/karmen_websocket_proxy' /etc/systemd/system/karmen-websocket-proxy.service
+sudo systemctl daemon-reload
+sudo systemctl restart karmen-websocket-proxy.service
