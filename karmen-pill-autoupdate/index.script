@@ -2,9 +2,6 @@
 
 echo "Updating karmen-gists repository."
 
-/sbin/runuser -l pi -c 'cd /home/pi/karmen-gists'
-/sbin/runuser -l pi -c 'git reset --hard HEAD'
-/sbin/runuser -l pi -c 'git checkout master'
-/sbin/runuser -l pi -c 'git pull'
+/sbin/runuser -l pi -c 'cd /home/pi/karmen-gists && git reset --hard HEAD && git checkout master && git pull'
 
 cp /home/pi/karmen-gists/karmen-pill-autoupdate/karmen-autoupdate-cron /etc/cron.d/karmen-autoupdate-cron
