@@ -1,1 +1,3 @@
+#v1
+
 */1 * * * * root /home/pi/karmen-gists/karmen-pill-autoupdate/index.script >> /var/log/karmen-pill-autoupdate.log 2>&1

@@ -1,7 +1,10 @@
 #!/bin/bash
 
 echo "Updating karmen-gists repository."
+/sbin/runuser -l pi -c 'cd /home/pi/karmen-gists && git reset --hard HEAD && git checkout main && git pull'
 
-/sbin/runuser -l pi -c 'cd /home/pi/karmen-gists && git reset --hard HEAD && git checkout master && git pull'
-
+echo "Copy new version of cron file"
 cp /home/pi/karmen-gists/karmen-pill-autoupdate/karmen-autoupdate-cron /etc/cron.d/karmen-autoupdate-cron
+
+echo "Updating karmen-websocket-proxy repository."
+/sbin/runuser -l pi -c 'cd /opt/karmen_websocket_proxy/ && git reset --hard HEAD && git checkout master && git pull'
