@@ -316,5 +316,5 @@ EOT
 ###############################################################################
 
 echo "============================================================"
-echo "All done. Please raspberry will reboot. Happy printing!"
+echo "All done. Raspberry will reboot. Happy Karming!"
 sudo reboot
