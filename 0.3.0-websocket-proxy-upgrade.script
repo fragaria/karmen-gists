@@ -4,7 +4,7 @@ git clone https://github.com/fragaria/websocket-proxy.git karmen_websocket_proxy
 cp -r /opt/karmen_websocket_proxy/node_modules /home/pi/karmen_websocket_proxy/
 cd /home/pi/karmen_websocket_proxy/
 git checkout version/pill-0.3.0
-echo "0 */1 * * * root /sbin/runuser -l pi -c 'echo "" && date && cd /home/pi/karmen_websocket_proxy && git pull' >> /var/log/karmen-websocket-autoupdate.log 2>&1" | sudo tee /etc/cron.d/karmen-websocket-autoupdate
+echo "0 */8 * * * root /sbin/runuser -l pi -c 'echo "" && date && cd /home/pi/karmen_websocket_proxy && git pull' >> /var/log/karmen-websocket-autoupdate.log 2>&1" | sudo tee /etc/cron.d/karmen-websocket-autoupdate
 sudo sed  -i '\/opt\/karmen_websocket_proxy/c\WorkingDirectory=\/home\/pi\/karmen_websocket_proxy' /etc/systemd/system/karmen-websocket-proxy.service
 sudo systemctl daemon-reload
 sudo systemctl restart karmen-websocket-proxy.service
