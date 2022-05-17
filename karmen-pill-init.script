@@ -311,6 +311,11 @@ OCTOPRINT PASSWORD: karmen
 PI USER DEFAULT PASSWORD: raspberry
 EOT
 
+# show content $KEYS_OUT_FILE content to user before reboot, so one can assign printer key in Karmen immediatelly
+echo "============================================================"
+echo "Your secrets from $KEYS_OUT_FILE (don't share with anyone):"
+cat $KEYS_OUT_FILE
+
 ###############################################################################
 # All done, reboot system
 ###############################################################################
