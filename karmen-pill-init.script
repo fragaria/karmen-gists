@@ -209,7 +209,7 @@ RemainAfterExit=no
 WantedBy=multi-user.target
 EOT
 
-apt install python3-pip -y
+apt install python3-pip python3-rpi.gpio -y
 pip3 install apa102-pi
 
 chmod +x /opt/karmen-led.py
