@@ -13,7 +13,7 @@
 # curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/main/ws-install.sh | sudo bash -s KEY
 
 
-readonly USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
+readonly USER_HOME=$HOME
 GROUP=($(groups))
 
 if [ ${EUID} -ne 0 ]; then
@@ -75,9 +75,9 @@ echo "WorkingDirectory=$USER_HOME/websocket-proxy/" >> $SERVICEFILE
 echo "[Install]" >> $SERVICEFILE
 echo "WantedBy=multi-user.target" >> $SERVICEFILE
 
-KEYFILE=$USER_HOME/printer_data/karmen-key.txt
-echo -n "" > $KEYFILE
-echo $KEY >> $KEYFILE
+KEYFILE=$USER_HOME/printer_data/config/karmen-key.txt
+echo -n "" > "$KEYFILE"
+echo $KEY >> "$KEYFILE"
 
 chmod 755 $USER_HOME/
 
