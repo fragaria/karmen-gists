@@ -75,6 +75,10 @@ echo "WorkingDirectory=$USER_HOME/websocket-proxy/" >> $SERVICEFILE
 echo "[Install]" >> $SERVICEFILE
 echo "WantedBy=multi-user.target" >> $SERVICEFILE
 
+KEYFILE=$USER_HOME/printer_data/karmen-key.txt
+echo -n "" > $KEYFILE
+echo $KEY >> $KEYFILE
+
 chmod 755 $USER_HOME/
 
 systemctl daemon-reload
