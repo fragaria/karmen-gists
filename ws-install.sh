@@ -12,10 +12,6 @@
 
 # curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/main/ws-install.sh | sudo bash -s KEY
 
-
-readonly USER_HOME=$HOME
-GROUP=($(groups))
-
 if [ ${EUID} -ne 0 ]; then
     echo "This script must be run as root. Cancelling" >&2
     exit 1
@@ -30,23 +26,27 @@ fi
 KEY=$1
 echo ""
 sudo -v
+
+NU=$(logname)
+
+USER_HOME=$(bash -c "cd ~$(printf %q "$NU") && pwd")
+GROUP=($(groups))
+
 # install nodejs
-sudo apt update
-sudo apt install nodejs npm -y
+apt update
+apt install nodejs npm -y
 
 # download latest release
-echo $USER_HOME
-cd $USER_HOME
 
-curl -L -o /tmp/websocket-proxy.zip https://github.com/fragaria/websocket-proxy/archive/refs/heads/master.zip
-mkdir $USER_HOME/websocket-proxy
-unzip -o /tmp/websocket-proxy.zip -d $USER_HOME/websocket-proxy
-cd $USER_HOME/websocket-proxy/ && mv websocket-proxy-master/* . && rm -rf websocket-proxy-master
-cd $USER_HOME/websocket-proxy/ && npm install --only=production
+sudo -u $NU curl -L -o /tmp/websocket-proxy.zip https://github.com/fragaria/websocket-proxy/archive/refs/heads/master.zip
+sudo -u $NU mkdir $USER_HOME/websocket-proxy
+sudo -u $NU unzip -o /tmp/websocket-proxy.zip -d $USER_HOME/websocket-proxy
+cd $USER_HOME/websocket-proxy/
+sudo -u $NU mv websocket-proxy-master/* .
+sudo -u $NU rm -rf websocket-proxy-master
+sudo -u $NU npm install --only=production
 
 # create systemd service file
-
-
 CONFFILE=/etc/websocket-proxy.conf
 echo -n "" > $CONFFILE
 echo "KARMEN_URL=https://karmen.fragaria.cz" >> $CONFFILE
@@ -79,7 +79,7 @@ KEYFILE=$USER_HOME/printer_data/config/karmen-key.txt
 echo -n "" > "$KEYFILE"
 echo $KEY >> "$KEYFILE"
 
-chmod 755 $USER_HOME/
+#chmod 755 $USER_HOME/
 
 systemctl daemon-reload
 systemctl enable websocket-proxy.service
