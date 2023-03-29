@@ -33,7 +33,7 @@ USER_HOME=$(bash -c "cd ~$(printf %q "$NU") && pwd")
 GROUP=($(groups))
 
 # install nodejs
-apt update
+curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash - &&\
 apt install nodejs npm -y
 
 # download latest release
