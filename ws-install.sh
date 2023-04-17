@@ -10,6 +10,9 @@
 # create systemd service file for karmen websocket-proxy
 # start karmen websocket-proxy
 
+# Install nodejs first!
+# curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash - && sudo apt install nodejs -y
+# And then:
 # curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/main/ws-install.sh | sudo bash -s KEY
 
 if [ ${EUID} -ne 0 ]; then
@@ -31,10 +34,6 @@ NU=$(logname)
 
 USER_HOME=$(bash -c "cd ~$(printf %q "$NU") && pwd")
 GROUP=($(groups))
-
-# install nodejs
-curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E bash - &&\
-apt install nodejs npm -y
 
 # download latest release
 
