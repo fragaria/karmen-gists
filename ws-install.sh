@@ -51,7 +51,7 @@ echo -n "" > $CONFFILE
 echo "KARMEN_URL=https://karmen.fragaria.cz" >> $CONFFILE
 echo "NODE_ENV=production" >> $CONFFILE
 echo "PATH=/bin" >> $CONFFILE
-echo "FORWARD_TO=http://localhost:80" >> $CONFFILE
+echo "FORWARD_TO=http://127.0.0.1" >> $CONFFILE
 echo "KEY=$KEY" >> $CONFFILE
 echo "SERVER_URL=wss://cloud.karmen.tech" >> $CONFFILE
 
