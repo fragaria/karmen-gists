@@ -37,12 +37,13 @@ GROUP=($(groups))
 
 # download latest release
 
-sudo -u $NU curl -L -o /tmp/websocket-proxy.zip https://github.com/fragaria/websocket-proxy/archive/refs/heads/master.zip
-sudo -u $NU mkdir $USER_HOME/websocket-proxy
-sudo -u $NU unzip -o /tmp/websocket-proxy.zip -d $USER_HOME/websocket-proxy
+# sudo -u $NU curl -L -o /tmp/websocket-proxy.zip https://github.com/fragaria/websocket-proxy/archive/refs/heads/master.zip
+# sudo -u $NU mkdir $USER_HOME/websocket-proxy
+# sudo -u $NU unzip -o /tmp/websocket-proxy.zip -d $USER_HOME/websocket-proxy
+sudo -u $NU git clone --depth 1 https://github.com/fragaria/websocket-proxy.git
 cd $USER_HOME/websocket-proxy/
-sudo -u $NU mv websocket-proxy-master/* .
-sudo -u $NU rm -rf websocket-proxy-master
+# sudo -u $NU mv websocket-proxy-master/* .
+# sudo -u $NU rm -rf websocket-proxy-master
 sudo -u $NU npm install --only=production
 
 # create systemd service file
