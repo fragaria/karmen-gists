@@ -78,6 +78,16 @@ KEYFILE=$USER_HOME/printer_data/config/karmen-key.txt
 echo -n "" > "$KEYFILE"
 echo $KEY >> "$KEYFILE"
 
+MOONCONF=$USER_HOME/printer_data/config/moonraker.conf
+echo "" >> $MOONCONF
+echo "[update_manager websocket-proxy]" >> $MOONCONF
+echo "type: git_repo" >> $MOONCONF
+echo "path: ~/websocket-proxy" >> $MOONCONF
+echo "origin: https://github.com/fragaria/websocket-proxy.git" >> $MOONCONF
+echo "enable_node_updates: True" >> $MOONCONF
+echo "managed_services:" >> $MOONCONF
+echo "    websocket-proxy" >> $MOONCONF
+
 #chmod 755 $USER_HOME/
 
 systemctl daemon-reload
