@@ -47,7 +47,7 @@ cd $USER_HOME/websocket-proxy/
 sudo -u $NU npm install --only=production
 
 # create systemd service file
-CONFFILE=/etc/websocket-proxy.conf
+CONFFILE=$USER_HOME/printer_data/config/websocket-proxy.conf
 echo -n "" > $CONFFILE
 echo "KARMEN_URL=https://karmen.fragaria.cz" >> $CONFFILE
 echo "NODE_ENV=production" >> $CONFFILE
@@ -89,7 +89,7 @@ echo "enable_node_updates: True" >> $MOONCONF
 echo "managed_services:" >> $MOONCONF
 echo "    websocket-proxy" >> $MOONCONF
 
-#chmod 755 $USER_HOME/
+chmod 755 $USER_HOME/
 
 systemctl daemon-reload
 systemctl enable websocket-proxy.service
