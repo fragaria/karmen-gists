@@ -90,6 +90,13 @@ echo "enable_node_updates: True" >> $MOONCONF
 echo "managed_services:" >> $MOONCONF
 echo "    websocket-proxy" >> $MOONCONF
 
+MOONSVC=$USER_HOME/printer_data/moonraker.asvc
+if ! cat $MOONSVC | grep websocket-proxy > /dev/null; then
+        echo "websocket-proxy" >> $MOONSVC
+    else
+        echo "Websocket already enabled!";
+fi
+
 chmod 755 $USER_HOME/
 
 systemctl daemon-reload
