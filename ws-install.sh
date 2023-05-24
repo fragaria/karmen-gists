@@ -48,49 +48,52 @@ cd $USER_HOME/websocket-proxy/
 sudo -u $NU npm install --only=production
 
 # create systemd service file
-CONFFILE=$USER_HOME/printer_data/config/websocket-proxy.conf
-echo -n "" > $CONFFILE
-echo "KARMEN_URL=https://karmen.fragaria.cz" >> $CONFFILE
-echo "NODE_ENV=production" >> $CONFFILE
-echo "PATH=/bin" >> $CONFFILE
-echo "FORWARD_TO=http://127.0.0.1" >> $CONFFILE
-echo "KEY=$KEY" >> $CONFFILE
-echo "SERVER_URL=wss://cloud.karmen.tech" >> $CONFFILE
-echo "FORWARD_TO_PORTS=80,8888" >> $CONFFILE  # permit default port and Spectoda API
+cat >$USER_HOME/printer_data/config/websocket-proxy.conf <<EOF
+KARMEN_URL=https://karmen.fragaria.cz
+NODE_ENV=production
+PATH=/bin
+FORWARD_TO=http://127.0.0.1
+KEY=$KEY
+SERVER_URL=wss://cloud.karmen.tech
+FORWARD_TO_PORTS=80,8888
+EOF
 
-SERVICEFILE=/etc/systemd/system/websocket-proxy.service
+# create systemd websocket-proxy service
+cat >/etc/systemd/system/websocket-proxy.service <<EOF
+[Unit]
+Description=Karmen websocket proxy tunnel client
+Wants=network-online.target
+After=network.target network-online.target
+[Service]
+ExecStart=node client
+Restart=always
+RestartSec=1
+User=$USER
+Group=$GROUP
+Environment=PATH=/usr/bin:/usr/local/bin
+EnvironmentFile=$CONFFILE
+WorkingDirectory=$USER_HOME/websocket-proxy/
+[Install]
+WantedBy=multi-user.target
+EOF
 
-echo -n "" > $SERVICEFILE
-echo "[Unit]" >> $SERVICEFILE
-echo "Description=Karmen websocket proxy tunnel client" >> $SERVICEFILE
-echo "Wants=network-online.target" >> $SERVICEFILE
-echo "After=network.target network-online.target" >> $SERVICEFILE
-echo "[Service]" >> $SERVICEFILE
-echo "ExecStart=node client" >> $SERVICEFILE
-echo "Restart=always" >> $SERVICEFILE
-echo "RestartSec=1" >> $SERVICEFILE
-echo "User=$USER" >> $SERVICEFILE
-echo "Group=$GROUP" >> $SERVICEFILE
-echo "Environment=PATH=/usr/bin:/usr/local/bin" >> $SERVICEFILE
-echo "EnvironmentFile=$CONFFILE" >> $SERVICEFILE
-echo "WorkingDirectory=$USER_HOME/websocket-proxy/" >> $SERVICEFILE
-echo "[Install]" >> $SERVICEFILE
-echo "WantedBy=multi-user.target" >> $SERVICEFILE
+# setup Karmen printer key (necessary for ws proxy to be able to connect
+cat >$USER_HOME/printer_data/config/karmen-key.txt <<EOF
+$KEY
+EOF
 
-KEYFILE=$USER_HOME/printer_data/config/karmen-key.txt
-echo -n "" > "$KEYFILE"
-echo $KEY >> "$KEYFILE"
+# setup moonraker uuuu
+cat >>$USER_HOME/printer_data/config/moonraker.conf <<EOF
+[update_manager websocket-proxy]
+type: git_repo
+path: ~/websocket-proxy
+origin: https://github.com/fragaria/websocket-proxy.git
+enable_node_updates: True
+managed_services:
+    websocket-proxy
+EOF
 
-MOONCONF=$USER_HOME/printer_data/config/moonraker.conf
-echo "" >> $MOONCONF
-echo "[update_manager websocket-proxy]" >> $MOONCONF
-echo "type: git_repo" >> $MOONCONF
-echo "path: ~/websocket-proxy" >> $MOONCONF
-echo "origin: https://github.com/fragaria/websocket-proxy.git" >> $MOONCONF
-echo "enable_node_updates: True" >> $MOONCONF
-echo "managed_services:" >> $MOONCONF
-echo "    websocket-proxy" >> $MOONCONF
-
+# allow moonraker to manage websocket-proxy systemd service
 MOONSVC=$USER_HOME/printer_data/moonraker.asvc
 if ! cat $MOONSVC | grep websocket-proxy > /dev/null; then
         echo "websocket-proxy" >> $MOONSVC
