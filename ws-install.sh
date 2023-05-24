@@ -68,7 +68,7 @@ echo "After=network.target network-online.target" >> $SERVICEFILE
 echo "[Service]" >> $SERVICEFILE
 echo "ExecStart=node client" >> $SERVICEFILE
 echo "Restart=always" >> $SERVICEFILE
-echo "RestartSec=1000" >> $SERVICEFILE
+echo "RestartSec=1" >> $SERVICEFILE
 echo "User=$USER" >> $SERVICEFILE
 echo "Group=$GROUP" >> $SERVICEFILE
 echo "Environment=PATH=/usr/bin:/usr/local/bin" >> $SERVICEFILE
