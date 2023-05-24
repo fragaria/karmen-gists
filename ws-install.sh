@@ -56,6 +56,7 @@ echo "PATH=/bin" >> $CONFFILE
 echo "FORWARD_TO=http://127.0.0.1" >> $CONFFILE
 echo "KEY=$KEY" >> $CONFFILE
 echo "SERVER_URL=wss://cloud.karmen.tech" >> $CONFFILE
+echo "FORWARD_TO_PORTS=80,8888" >> $CONFFILE  # permit default port and Spectoda API
 
 SERVICEFILE=/etc/systemd/system/websocket-proxy.service
 
