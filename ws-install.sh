@@ -15,6 +15,14 @@
 # And then:
 # curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/main/ws-install.sh | sudo bash -s KEY
 
+set -e
+set -u  # unset variable is error
+
+die() {
+    echo "$*"
+    exit 1
+}
+
 if [ ${EUID} -ne 0 ]; then
     echo "This script must be run as root. Cancelling" >&2
     exit 1
@@ -30,26 +38,22 @@ KEY=$1
 echo ""
 sudo -v
 
-NU=$(logname)
+LOGIN=pi
+GROUP=pi
+USER_HOME=/home/$LOGIN
 
-USER_HOME=$(bash -c "cd ~$(printf %q "$NU") && pwd")
-GROUP=($(groups))
+AS_PI_USER="sudo -u $LOGIN"
 
 # download latest release
 
-# sudo -u $NU curl -L -o /tmp/websocket-proxy.zip https://github.com/fragaria/websocket-proxy/archive/refs/heads/master.zip
-# sudo -u $NU mkdir $USER_HOME/websocket-proxy
-# sudo -u $NU unzip -o /tmp/websocket-proxy.zip -d $USER_HOME/websocket-proxy
-cd $USER_HOME
-sudo -u $NU git clone --depth 1 https://github.com/fragaria/websocket-proxy.git
-cd $USER_HOME/websocket-proxy/
-# sudo -u $NU mv websocket-proxy-master/* .
-# sudo -u $NU rm -rf websocket-proxy-master
-sudo -u $NU npm install --only=production
+cd $USER_HOME || die "Could not cd to home dir, exitting."
+$AS_PI_USER git clone --depth 1 https://github.com/fragaria/websocket-proxy.git
+cd $USER_HOME/websocket-proxy/ || die "Something is wrong, could not switch to $USER_HOME/websocket-proxy"
+$AS_PI_USER npm install --only=production
 
-# create systemd service file
+echo "Preparing config for websocket proxy"
 CONFFILE=$USER_HOME/printer_data/config/websocket-proxy.conf
-sudo -u $NU cat >$CONFFILE <<EOF
+$AS_PI_USER tee $CONFFILE > /dev/null <<EOF
 KARMEN_URL=https://karmen.fragaria.cz
 NODE_ENV=production
 PATH=/bin
@@ -58,13 +62,17 @@ KEY=$KEY
 SERVER_URL=wss://cloud.karmen.tech
 FORWARD_TO_PORTS=80,8888
 EOF
+echo Done
 
-# create systemd websocket-proxy service
-cat >/etc/systemd/system/websocket-proxy.service <<EOF
+
+echo "Creating websocket-proxy service"
+WS_SERVICE_FILE=/etc/systemd/system/websocket-proxy.service
+$AS_PI_USER tee $WS_SERVICE_FILE > /dev/null <<EOD
 [Unit]
 Description=Karmen websocket proxy tunnel client
 Wants=network-online.target
 After=network.target network-online.target
+
 [Service]
 ExecStart=node client
 Restart=always
@@ -73,21 +81,24 @@ User=$USER
 Group=$GROUP
 Environment=PATH=/usr/bin:/usr/local/bin
 EnvironmentFile=$CONFFILE
-WorkingDirectory=$USER_HOME/websocket-proxy
+WorkingDirectory=$USER_HOME/websocket-proxy/
+
 [Install]
 WantedBy=multi-user.target
-EOF
+EOD
+echo Done
 
+echo "Setting up Karmen key to be visible in configs"
 # setup Karmen printer key (necessary for ws proxy to be able to connect
 WS_KEY_FILE=$USER_HOME/printer_data/config/karmen-key.txt
 if [ ! -f  $WS_KEY_FILE ]; then
-    sudo -u $NU cat >$WS_KEY_FILE <<EOF
-    $KEY
-EOF
+    $AS_PI_USER tee $WS_KEY_FILE > /dev/null <<<"$KEY"
 fi
+echo Done
 
-# setup moonraker uuuu
-sudo -u $NU cat >>$USER_HOME/printer_data/config/moonraker.conf <<EOF
+echo "Setting up Moonraker Update Manager to manage websocket-proxy service"
+# setup moonraker
+$AS_PI_USER tee -a $USER_HOME/printer_data/config/moonraker.conf > /dev/null <<EOF
 [update_manager websocket-proxy]
 type: git_repo
 path: ~/websocket-proxy
@@ -96,7 +107,6 @@ enable_node_updates: True
 managed_services:
     websocket-proxy
 EOF
-
 # allow moonraker to manage websocket-proxy systemd service
 MOONSVC=$USER_HOME/printer_data/moonraker.asvc
 if ! cat $MOONSVC | grep websocket-proxy > /dev/null; then
@@ -104,11 +114,19 @@ if ! cat $MOONSVC | grep websocket-proxy > /dev/null; then
     else
         echo "Websocket already enabled!";
 fi
+echo Done
 
+
+echo "Fixing possible permission problems"
 chmod 755 $USER_HOME/
+echo Done
 
+echo "Starting websocket proxy service"
 systemctl daemon-reload
 systemctl enable websocket-proxy.service
 systemctl restart websocket-proxy.service
+echo Done
 
+echo "Installing karmen-pws-connector"
 curl -s https://raw.githubusercontent.com/fragaria/karmen-pws-connector/v0.0.1/install.sh | exec bash -xs
+echo Done
