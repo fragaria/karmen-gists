@@ -28,7 +28,7 @@ if [ ${EUID} -ne 0 ]; then
     exit 1
 fi
 
-if [ -z "$1" ]
+if [ -z "${1-}" ]
 then
       echo "No karmen key provided. Use ./install.sh <key>"
       exit 1
@@ -67,7 +67,7 @@ echo Done
 
 echo "Creating websocket-proxy service"
 WS_SERVICE_FILE=/etc/systemd/system/websocket-proxy.service
-$AS_PI_USER tee $WS_SERVICE_FILE > /dev/null <<EOD
+cat > $WS_SERVICE_FILE <<EOD
 [Unit]
 Description=Karmen websocket proxy tunnel client
 Wants=network-online.target
