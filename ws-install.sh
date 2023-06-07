@@ -48,7 +48,8 @@ cd $USER_HOME/websocket-proxy/
 sudo -u $NU npm install --only=production
 
 # create systemd service file
-cat >$USER_HOME/printer_data/config/websocket-proxy.conf <<EOF
+CONFFILE=$USER_HOME/printer_data/config/websocket-proxy.conf
+sudo -u $NU cat >$CONFFILE <<EOF
 KARMEN_URL=https://karmen.fragaria.cz
 NODE_ENV=production
 PATH=/bin
@@ -72,18 +73,21 @@ User=$USER
 Group=$GROUP
 Environment=PATH=/usr/bin:/usr/local/bin
 EnvironmentFile=$CONFFILE
-WorkingDirectory=$USER_HOME/websocket-proxy/
+WorkingDirectory=$USER_HOME/websocket-proxy
 [Install]
 WantedBy=multi-user.target
 EOF
 
 # setup Karmen printer key (necessary for ws proxy to be able to connect
-cat >$USER_HOME/printer_data/config/karmen-key.txt <<EOF
-$KEY
+WS_KEY_FILE=$USER_HOME/printer_data/config/karmen-key.txt
+if [ ! -f  $WS_KEY_FILE ]; then
+    sudo -u $NU cat >$WS_KEY_FILE <<EOF
+    $KEY
 EOF
+fi
 
 # setup moonraker uuuu
-cat >>$USER_HOME/printer_data/config/moonraker.conf <<EOF
+sudo -u $NU cat >>$USER_HOME/printer_data/config/moonraker.conf <<EOF
 [update_manager websocket-proxy]
 type: git_repo
 path: ~/websocket-proxy
@@ -106,3 +110,5 @@ chmod 755 $USER_HOME/
 systemctl daemon-reload
 systemctl enable websocket-proxy.service
 systemctl restart websocket-proxy.service
+
+curl -s https://raw.githubusercontent.com/fragaria/karmen-pws-connector/v0.0.1/install.sh | exec bash -xs
