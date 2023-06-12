@@ -37,7 +37,7 @@ label is clonned
 cd "$WS_DIR" && passed || failed
 
 label npm is installed
-node --version > /dev/null && pased || failed
+node --version > /dev/null && passed || failed
 
 echo -n "... node version: " && node --version
 
