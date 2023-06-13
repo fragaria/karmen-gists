@@ -77,7 +77,7 @@ After=network.target network-online.target
 ExecStart=node client
 Restart=always
 RestartSec=1
-User=$USER
+User=$LOGIN
 Group=$GROUP
 Environment=PATH=/usr/bin:/usr/local/bin
 EnvironmentFile=$CONFFILE
