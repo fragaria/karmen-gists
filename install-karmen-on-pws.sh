@@ -1,5 +1,8 @@
 #!/bin/bash
 # Adds karmen on PWS printer (Klipper firmware, systemd based on debian)
+#
+# Run following command on printer to install:
+# curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/v0.0.5/install-karmen-on-pws.sh | sudo -E bash -xs DEVICE_KEY
 
 set -e  # exit on error
 set -u  # error on undefined
