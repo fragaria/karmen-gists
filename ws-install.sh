@@ -126,7 +126,3 @@ systemctl daemon-reload
 systemctl enable websocket-proxy.service
 systemctl restart websocket-proxy.service
 echo Done
-
-echo "Installing karmen-pws-connector"
-curl -s https://raw.githubusercontent.com/fragaria/karmen-pws-connector/v0.0.1/install.sh | exec bash -xs
-echo Done
