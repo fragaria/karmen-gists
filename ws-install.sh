@@ -77,7 +77,7 @@ After=network.target network-online.target
 ExecStart=node client
 Restart=always
 RestartSec=1
-User=$USER
+User=$LOGIN
 Group=$GROUP
 Environment=PATH=/usr/bin:/usr/local/bin
 EnvironmentFile=$CONFFILE
@@ -125,8 +125,4 @@ echo "Starting websocket proxy service"
 systemctl daemon-reload
 systemctl enable websocket-proxy.service
 systemctl restart websocket-proxy.service
-echo Done
-
-echo "Installing karmen-pws-connector"
-curl -s https://raw.githubusercontent.com/fragaria/karmen-pws-connector/v0.0.1/install.sh | exec bash -xs
 echo Done
