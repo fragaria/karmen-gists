@@ -19,8 +19,8 @@ fi
 curl -fsSL https://deb.nodesource.com/setup_19.x | sudo -E /bin/bash - && sudo apt install nodejs -y
 
 # Websocket Proxy
-curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/v0.0.5/ws-install.sh | sudo -E bash -xs "$DEVICE_KEY"
+curl -s https://raw.githubusercontent.com/fragaria/karmen-gists/v0.0.6/ws-install.sh | sudo -E bash -xs "$DEVICE_KEY"
 
 # karmen-pws-connector
-curl -s https://raw.githubusercontent.com/fragaria/karmen-pws-connector/v0.0.1/install.sh | sudo -E bash -xs
+curl -s https://raw.githubusercontent.com/fragaria/karmen-pws-connector/v0.0.4/install.sh | sudo -E bash -xs
 
