@@ -76,7 +76,7 @@ After=network.target network-online.target
 [Service]
 ExecStart=node client
 Restart=always
-RestartSec=1
+RestartSec=5
 User=$LOGIN
 Group=$GROUP
 Environment=PATH=/usr/bin:/usr/local/bin
