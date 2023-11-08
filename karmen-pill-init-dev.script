@@ -1,0 +1,210 @@
+#!/bin/bash
+
+
+# check run as root
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
+
+###############################################################################
+# LOCALE - set system locale to en_US.UTF-8
+###############################################################################
+
+echo "Set system locale to en_US.UTF-8"
+localectl set-locale LANG=en_US.UTF-8
+
+
+###############################################################################
+# VARIABLES - TODO: add more variables from this script
+###############################################################################
+
+KEYS_OUT_FILE=/boot/KARMEN_KEYS.TXT
+KEY_RESPONSE=""                         # will be set later in script
+OCTOPRINT_API_KEY=""                    # will be set later in script
+
+
+###############################################################################
+# Read KEY_RESPONSE from user input
+###############################################################################
+
+echo "Karmen websocket proxy needs key to communicate with the server. You can change key later in /etc/karmen_websocket_proxy.conf file."
+echo "================================================================="
+read -p "Your Karmen key: " KEY_RESPONSE
+
+
+###############################################################################
+# Upgrade system
+###############################################################################
+
+echo "Upgrade system."
+apt update
+apt upgrade -y
+
+
+###############################################################################
+# Enable SPI - for karmen LEDs
+###############################################################################
+
+echo "Enable SPI."
+sed -i "s/#dtparam=spi=on/dtparam=spi=on/" /boot/config.txt
+
+
+###############################################################################
+# Upgrade PIP - system and on octoprint virtualenv
+###############################################################################
+
+echo "Upgrade PIP in system"
+python -m pip install --upgrade pip
+
+echo "Upgrade PIP in Octoprint virtualenv"
+/home/pi/oprint/bin/python -m pip install --upgrade pip
+
+
+
+###############################################################################
+# Install Karmen Octoprint Plugin and LED Plugin
+###############################################################################
+
+echo "Install karmen proxy plugin"
+runuser -l pi -c '/home/pi/oprint/bin/pip install "https://github.com/fragaria/karmen-octoprint-plugin/archive/refs/heads/main.zip"'
+
+echo "Install karmen LED plugin"
+runuser -l pi -c '/home/pi/oprint/bin/pip install  "https://github.com/fragaria/karmen-led-octoprint-plugin/archive/refs/tags/0.1.1.zip"'
+
+
+###############################################################################
+# Camera resolution
+###############################################################################
+
+echo "Change camera resolution"
+cp /boot/octopi.txt /boot/octopi.txt.bck
+tee /boot/octopi.txt > /dev/null <<EOT
+camera="usb"
+camera_usb_options="-fps 10 -r 1296x972 -quality 15"
+EOT
+
+echo "Restart webcamd"
+systemctl restart webcamd
+
+sleep 5
+
+
+###############################################################################
+# Restart Octoprint
+###############################################################################
+
+echo "Restart Octoprint"
+systemctl restart octoprint.service
+sleep 30
+
+
+###############################################################################
+# Run octoprint configuration wizzard
+###############################################################################
+
+OCTOPRINT_API_KEY=$(grep -r "  key: " /home/pi/.octoprint/config.yaml | awk '{print $2}')
+echo "OCTOPRINT_API_KEY: "$OCTOPRINT_API_KEY
+
+# Access Control - create account:
+curl 'http://localhost/plugin/corewizard/acl' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"user":"karmen","pass1":"karmen","pass2":"karmen"}'
+
+# Configure the connectivity check
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"server":{"onlineCheck":{"enabled":true,"interval":15,"host":"1.1.1.1","port":53}}}'
+
+# Disable tracking
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"plugins":{"tracking":{"enabled":false}}}'
+
+# Enable plugin blacklist processing
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"server":{"pluginBlacklist":{"enabled":true}}}'
+
+# Final click
+curl 'http://localhost/api/printerprofiles/_default' \
+  -X 'PATCH' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"profile":{"id":"_default","name":"Default","color":"default","model":"Generic RepRap Printer","volume":{"width":200,"depth":200,"height":200,"formFactor":"rectangular","origin":"lowerleft","custom_box":false},"heatedBed":true,"heatedChamber":false,"extruder":{"count":1,"offsets":[[0,0]],"nozzleDiameter":0.4,"sharedNozzle":false},"axes":{"x":{"speed":6000,"inverted":false},"y":{"speed":6000,"inverted":false},"z":{"speed":200,"inverted":false},"e":{"speed":300,"inverted":false}}}}'
+
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"temperature":{"profiles":[{"name":"ABS","extruder":210,"bed":100,"chamber":null},{"name":"PLA","extruder":180,"bed":60,"chamber":null}]}}'
+
+curl 'http://localhost/api/setup/wizard' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"handled":["backup","corewizard","tracking"]}'
+
+# Add more nozzles to work with Prusa MMU2
+curl 'http://localhost/api/printerprofiles/_default' \
+  -X 'PATCH' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"profile":{"id":"_default","extruder":{"count":5,"offsets":[[0,0],[0,0],[0,0],[0,0],[0,0]],"sharedNozzle":true}}}'
+
+# Setup webcam api snapshot url
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"webcam":{"snapshotUrl":"http://127.0.0.1/webcam/?action=snapshot"}}'
+
+# Disable octoprint unsupported hardware notiffication
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"plugins":{"pi_support":{"ignore_unrecommended_model":true}}}'
+
+# Set Karmen Device Key
+curl 'http://localhost/api/settings' \
+  -H 'Content-Type: application/json; charset=UTF-8' \
+  -H 'X-Api-Key: '$OCTOPRINT_API_KEY \
+  --data-raw '{"plugins":{"karmen":{"karmen_key":"'$KEY_RESPONSE'"}}}'
+
+
+###############################################################################
+# Restart Octoprint
+###############################################################################
+
+echo "Restart Octoprint"
+systemctl restart octoprint.service
+sleep 10
+
+
+###############################################################################
+# Generate keys file
+###############################################################################
+
+tee $KEYS_OUT_FILE > /dev/null <<EOT
+DEVICE KEY: $KEY_RESPONSE
+OCTOPRINT API KEY: $OCTOPRINT_API_KEY
+OCTOPRINT USER: karmen
+OCTOPRINT PASSWORD: karmen
+PI SSH USER DEFAULT PASSWORD: raspberry
+EOT
+
+# show content $KEYS_OUT_FILE content to user before reboot, so one can assign printer key in Karmen immediatelly
+echo "============================================================"
+echo "Your secrets from $KEYS_OUT_FILE (don't share with anyone):"
+cat $KEYS_OUT_FILE
+
+
+###############################################################################
+# All done, reboot system
+###############################################################################
+
+echo "============================================================"
+echo "All done. Raspberry will reboot. Happy Karming!"
+sudo reboot
