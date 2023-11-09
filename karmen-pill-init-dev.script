@@ -1,6 +1,17 @@
 #!/bin/bash
 
 
+_log () {
+  echo "
+
+>==============================================================================
+  $1
+<==============================================================================
+
+"
+}
+
+
 # check run as root
 if [ "$EUID" -ne 0 ]
   then echo "Please run as root"
@@ -12,7 +23,7 @@ fi
 # LOCALE - set system locale to en_US.UTF-8
 ###############################################################################
 
-echo "Setting system locale to en_US.UTF-8..."
+_log "Setting system locale to en_US.UTF-8..."
 localectl set-locale LANG=en_US.UTF-8
 
 
@@ -32,16 +43,16 @@ OCTOPRINT_KARMEN_USER_PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; e
 # Read KEY_RESPONSE from user input
 ###############################################################################
 
-echo "Karmen websocket proxy needs key to communicate with the server. You can change key later in /etc/karmen_websocket_proxy.conf file."
-echo "================================================================="
-read -p "Your Karmen key: " KEY_RESPONSE
+_log "Karmen websocket proxy needs key to communicate with the server."
+echo "<<<<<<<<<<<<<<< Please provide your Device Key"
+read -p "Karmen Device Key: " KEY_RESPONSE
 
 
 ###############################################################################
 # Upgrade system
 ###############################################################################
 
-echo "Upgrading system..."
+_log "Upgrading system..."
 apt update
 apt upgrade -y
 
@@ -50,7 +61,7 @@ apt upgrade -y
 # Enable SPI - for karmen LEDs
 ###############################################################################
 
-echo "Enabling SPI..."
+_log "Enabling SPI..."
 sed -i "s/#dtparam=spi=on/dtparam=spi=on/" /boot/config.txt
 
 
@@ -58,22 +69,21 @@ sed -i "s/#dtparam=spi=on/dtparam=spi=on/" /boot/config.txt
 # Upgrade PIP - system and on octoprint virtualenv
 ###############################################################################
 
-echo "Upgrading PIP in system..."
+_log "Upgrading PIP in system..."
 python -m pip install --upgrade pip
 
-echo "Upgrading PIP in Octoprint virtualenv..."
+_log "Upgrading PIP in Octoprint virtualenv..."
 /home/pi/oprint/bin/python -m pip install --upgrade pip
-
 
 
 ###############################################################################
 # Install Karmen Octoprint Plugin and LED Plugin
 ###############################################################################
 
-echo "Installing Karmen proxy plugin..."
+_log "Installing Karmen proxy plugin..."
 runuser -l pi -c '/home/pi/oprint/bin/pip install "https://github.com/fragaria/karmen-octoprint-plugin/archive/refs/heads/main.zip"'
 
-echo "Installing Karmen LED plugin..."
+_log "Installing Karmen LED plugin..."
 runuser -l pi -c '/home/pi/oprint/bin/pip install  "https://github.com/fragaria/karmen-led-octoprint-plugin/archive/refs/tags/0.1.1.zip"'
 
 
@@ -81,14 +91,14 @@ runuser -l pi -c '/home/pi/oprint/bin/pip install  "https://github.com/fragaria/
 # Camera resolution
 ###############################################################################
 
-echo "Changing camera resolution..."
+_log "Changing camera resolution..."
 cp /boot/octopi.txt /boot/octopi.txt.bck
 tee /boot/octopi.txt > /dev/null <<EOT
 camera="usb"
 camera_usb_options="-fps 10 -r 1296x972 -quality 15"
 EOT
 
-echo "Restarting webcamd..."
+_log "Restarting webcamd..."
 systemctl restart webcamd
 
 sleep 5
@@ -98,7 +108,7 @@ sleep 5
 # Restart Octoprint
 ###############################################################################
 
-echo "Restarting Octoprint..."
+_log "Restarting Octoprint..."
 systemctl restart octoprint.service
 sleep 30
 
@@ -108,7 +118,6 @@ sleep 30
 ###############################################################################
 
 OCTOPRINT_API_KEY=$(grep -r "  key: " /home/pi/.octoprint/config.yaml | awk '{print $2}')
-echo "OCTOPRINT_API_KEY: "$OCTOPRINT_API_KEY
 
 # Access Control - create account:
 curl 'http://localhost/plugin/corewizard/acl' \
@@ -178,21 +187,19 @@ curl 'http://localhost/api/settings' \
 
 
 ###############################################################################
-# Restart Octoprint
+# Stop Octoprint
 ###############################################################################
 
-echo "Restarting Octoprint..."
-sleep 5
-systemctl restart octoprint.service
-sleep 10
-
+_log "Stopping Octoprint..."
+sleep 20
+systemctl stop octoprint.service
 
 
 ###############################################################################
 # Change PI user password
 ###############################################################################
 
-echo "Changing PI user password..."
+_log "Changing PI user password..."
 usermod --password $(echo $SSH_PASSWORD | openssl passwd -1 -stdin) pi
 
 
@@ -209,9 +216,7 @@ PI SSH USER DEFAULT PASSWORD: $SSH_PASSWORD
 EOT
 
 # show content $KEYS_OUT_FILE content to user before reboot, so one can assign printer key in Karmen immediatelly
-echo ""
-echo "============================================================"
-echo "Your secrets from $KEYS_OUT_FILE (don't share with anyone):"
+_log "Your secrets from $KEYS_OUT_FILE (don't share with anyone):"
 cat $KEYS_OUT_FILE
 
 
@@ -219,7 +224,6 @@ cat $KEYS_OUT_FILE
 # All done, reboot system
 ###############################################################################
 
-echo ""
-echo "============================================================"
-echo "All done. Raspberry will reboot. Happy Karming!"
+_log "All done. Raspberry will reboot. Happy Karming!"
+sleep 5
 sudo reboot
