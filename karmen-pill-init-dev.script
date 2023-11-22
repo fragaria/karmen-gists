@@ -64,8 +64,6 @@ apt upgrade -y
 _log "Enabling SPI..."
 sed -i "s/#dtparam=spi=on/dtparam=spi=on/" /boot/config.txt
 
-_log "python3-rpi.gpio..."
-apt install python3-rpi.gpio -y
 
 ###############################################################################
 # Upgrade PIP - system and on octoprint virtualenv
@@ -86,7 +84,7 @@ _log "Installing Karmen proxy plugin..."
 runuser -l pi -c '/home/pi/oprint/bin/pip install "https://github.com/fragaria/karmen-octoprint-plugin/archive/refs/heads/main.zip"'
 
 _log "Installing Karmen LED plugin..."
-runuser -l pi -c '/home/pi/oprint/bin/pip install  "https://github.com/fragaria/karmen-led-octoprint-plugin/archive/refs/tags/0.1.1.zip"'
+runuser -l pi -c '/home/pi/oprint/bin/pip install  "https://github.com/fragaria/karmen-led-octoprint-plugin/archive/refs/heads/main.zip"'
 
 
 ###############################################################################
