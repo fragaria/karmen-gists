@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 
 _log () {
@@ -7,7 +8,6 @@ _log () {
 >==============================================================================
   $1
 <==============================================================================
-
 "
 }
 
@@ -58,12 +58,14 @@ apt upgrade -y
 
 
 ###############################################################################
-# Enable SPI - for karmen LEDs
+# Enable SPI and install python3-rpi.gpio - for karmen LEDs
 ###############################################################################
 
 _log "Enabling SPI..."
 sed -i "s/#dtparam=spi=on/dtparam=spi=on/" /boot/config.txt
 
+_log "python3-rpi.gpio..."
+apt install python3-rpi.gpio -y
 
 ###############################################################################
 # Upgrade PIP - system and on octoprint virtualenv
@@ -193,6 +195,7 @@ curl 'http://localhost/api/settings' \
 _log "Stopping Octoprint..."
 sleep 20
 systemctl stop octoprint.service
+sleep 10
 
 
 ###############################################################################
